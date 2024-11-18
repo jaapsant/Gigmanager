@@ -17,6 +17,18 @@ service cloud.firestore {
       return availabilityChanges && memberChanges.hasOnly([request.auth.uid]);
     }
 
+    function isAdmin() {
+      return request.auth != null && get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.admin == true;
+    }
+
+    function isBandManager() {
+      return request.auth != null && get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.bandManager == true;
+    }
+
+    function isAdminOrBandManager() {
+      return isAdmin() || isBandManager();
+    }
+
     // Users collection
     match /users/{userId} {
       allow read: if isAuthenticated() && request.auth.uid == userId;
@@ -39,9 +51,9 @@ service cloud.firestore {
     // Instruments collection
     match /instruments/{instrumentId} {
       allow read: if isAuthenticated();
-      allow create: if isEmailVerified();
-      allow update: if isEmailVerified();
-      allow delete: if isEmailVerified();
+      allow create: if isAdminOrBandManager();
+      allow update: if isAdminOrBandManager();
+      allow delete: if isAdminOrBandManager();
     }
 
     // Gigs collection
@@ -53,6 +65,12 @@ service cloud.firestore {
         isUpdatingOwnAvailability(resource.data)
       );
       allow delete: if isEmailVerified() && resource.data.createdBy == request.auth.uid;
+    }
+
+    // Roles collection
+    match /roles/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.admin == true;
     }
   }
 }
